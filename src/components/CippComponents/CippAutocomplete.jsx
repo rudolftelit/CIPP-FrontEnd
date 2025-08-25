@@ -6,12 +6,48 @@ import {
   TextField,
   IconButton,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useSettings } from "../../hooks/use-settings";
 import { getCippError } from "../../utils/get-cipp-error";
 import { ApiGetCallWithPagination } from "../../api/ApiCall";
 import { Sync } from "@mui/icons-material";
 import { Stack } from "@mui/system";
+import React from "react";
+
+const MemoTextField = React.memo(function MemoTextField({
+  params,
+  label,
+  placeholder,
+  ...otherProps
+}) {
+  const { InputProps, ...otherParams } = params;
+
+  return (
+    <TextField
+      {...otherParams}
+      label={label}
+      placeholder={placeholder}
+      {...otherProps}
+      slotProps={{
+        inputLabel: {
+          shrink: true,
+          sx: { transition: "none" },
+          required: otherProps.required,
+        },
+        input: {
+          ...InputProps,
+          notched: true,
+          sx: {
+            transition: "none",
+            "& .MuiOutlinedInput-notchedOutline": {
+              transition: "none",
+            },
+          },
+        },
+      }}
+    />
+  );
+});
 
 export const CippAutoComplete = (props) => {
   const {
@@ -32,11 +68,17 @@ export const CippAutoComplete = (props) => {
     required = false,
     isFetching = false,
     sx,
+    removeOptions = [],
+    sortOptions = false,
+    preselectedValue,
+    groupBy,
+    renderGroup,
     ...other
   } = props;
 
   const [usedOptions, setUsedOptions] = useState(options);
   const [getRequestInfo, setGetRequestInfo] = useState({ url: "", waiting: false, queryKey: "" });
+  const hasPreselectedRef = useRef(false);
   const filter = createFilterOptions({
     stringify: (option) => JSON.stringify(option),
   });
@@ -62,7 +104,7 @@ export const CippAutoComplete = (props) => {
       setGetRequestInfo({
         url: api.url,
         data: {
-          ...(!api.excludeTenantFilter ? { TenantFilter: currentTenant } : null),
+          ...(!api.excludeTenantFilter ? { tenantFilter: currentTenant } : null),
           ...api.data,
         },
         waiting: true,
@@ -119,7 +161,11 @@ export const CippAutoComplete = (props) => {
             label:
               typeof api?.labelField === "function"
                 ? api.labelField(option)
-                : option[api?.labelField],
+                : option[api?.labelField]
+                ? option[api?.labelField]
+                : option[api?.altLabelField] ||
+                  option[api?.valueField] ||
+                  "No label found - Are you missing a labelField?",
             value:
               typeof api?.valueField === "function"
                 ? api.valueField(option)
@@ -127,23 +173,98 @@ export const CippAutoComplete = (props) => {
             addedFields,
           };
         });
-        setUsedOptions(convertedOptions);
+
+        if (api?.dataFilter) {
+          setUsedOptions(api.dataFilter(convertedOptions));
+        } else {
+          setUsedOptions(convertedOptions);
+        }
       }
     }
 
     if (actionGetRequest.isError) {
       setUsedOptions([{ label: getCippError(actionGetRequest.error), value: "error" }]);
     }
-  }, [api, actionGetRequest.data, actionGetRequest.isSuccess, actionGetRequest.isError]);
+  }, [
+    api,
+    actionGetRequest.data,
+    actionGetRequest.isSuccess,
+    actionGetRequest.isError,
+    preselectedValue,
+    defaultValue,
+    value,
+    multiple,
+    onChange,
+  ]);
 
-  const rand = Math.random().toString(36).substring(5);
+  const memoizedOptions = useMemo(() => {
+    let finalOptions = api ? usedOptions : options;
+    if (removeOptions && removeOptions.length) {
+      finalOptions = finalOptions.filter((o) => !removeOptions.includes(o.value));
+    }
+    if (sortOptions) {
+      finalOptions.sort((a, b) => a.label?.localeCompare(b.label));
+    }
+    return finalOptions;
+  }, [api, usedOptions, options, removeOptions, sortOptions]);
+
+  // Dedicated effect for handling preselected value - only runs once
+  useEffect(() => {
+    if (preselectedValue && memoizedOptions.length > 0 && !hasPreselectedRef.current) {
+      // Check if we should skip preselection due to existing defaultValue
+      const hasDefaultValue =
+        defaultValue && (Array.isArray(defaultValue) ? defaultValue.length > 0 : true);
+
+      if (!hasDefaultValue) {
+        // For multiple mode, check if value is empty array or null/undefined
+        // For single mode, check if value is null/undefined
+        const shouldPreselect = multiple
+          ? !value || (Array.isArray(value) && value.length === 0)
+          : !value;
+
+        if (shouldPreselect) {
+          const preselectedOption = memoizedOptions.find(
+            (option) => option.value === preselectedValue
+          );
+
+          if (preselectedOption) {
+            const newValue = multiple ? [preselectedOption] : preselectedOption;
+            hasPreselectedRef.current = true; // Mark that we've preselected
+            if (onChange) {
+              onChange(newValue, newValue?.addedFields);
+            }
+          }
+        }
+      }
+    }
+  }, [preselectedValue, defaultValue, value, memoizedOptions, multiple, onChange]);
+
+  // Create a stable key that only changes when necessary inputs change
+  const stableKey = useMemo(() => {
+    // Only regenerate the key when these values change
+    const keyParts = [
+      JSON.stringify(defaultValue),
+      JSON.stringify(preselectedValue),
+      api?.url,
+      currentTenant,
+    ];
+    return keyParts.join("-");
+  }, [defaultValue, preselectedValue, api?.url, currentTenant]);
+
+  const lookupOptionByValue = useCallback(
+    (value) => {
+      const foundOption = memoizedOptions.find((option) => option.value === value);
+      return foundOption || { label: value, value: value };
+    },
+    [memoizedOptions]
+  );
 
   return (
     <Autocomplete
-      key={`${defaultValue}-${rand}`}
+      key={stableKey}
       disabled={disabled || actionGetRequest.isFetching || isFetching}
       popupIcon={
-        actionGetRequest.isFetching ? (
+        actionGetRequest.isFetching || isFetching ? (
           <CircularProgress color="inherit" size={20} />
         ) : (
           <ArrowDropDown />
@@ -155,6 +276,7 @@ export const CippAutoComplete = (props) => {
       disableClearable={disableClearable}
       multiple={multiple}
       fullWidth
+      placeholder={placeholder}
       filterOptions={(options, params) => {
         const filtered = filter(options, params);
         const isExisting =
@@ -162,21 +284,29 @@ export const CippAutoComplete = (props) => {
           options.some(
             (option) => params.inputValue === option.value || params.inputValue === option.label
           );
-
         if (params.inputValue !== "" && creatable && !isExisting) {
-          filtered.push({
+          const newOption = {
             label: `Add option: "${params.inputValue}"`,
             value: params.inputValue,
             manual: true,
-          });
+          };
+          if (!filtered.some((option) => option.value === newOption.value)) {
+            filtered.push(newOption);
+          }
         }
 
         return filtered;
       }}
       size="small"
       defaultValue={
-        typeof defaultValue === "string"
-          ? { label: defaultValue, value: defaultValue }
+        Array.isArray(defaultValue)
+          ? defaultValue.map((item) =>
+              typeof item === "string" ? lookupOptionByValue(item) : item
+            )
+          : typeof defaultValue === "object" && multiple
+          ? [defaultValue]
+          : typeof defaultValue === "string"
+          ? lookupOptionByValue(defaultValue)
           : defaultValue
       }
       name={name}
@@ -190,7 +320,7 @@ export const CippAutoComplete = (props) => {
                 value: item?.label ? item.value : item,
               };
               if (onCreateOption) {
-                onCreateOption(item, item?.addedFields);
+                item = onCreateOption(item, item?.addedFields);
               }
             }
             return item;
@@ -205,7 +335,7 @@ export const CippAutoComplete = (props) => {
               value: newValue?.label ? newValue.value : newValue,
             };
             if (onCreateOption) {
-              onCreateOption(newValue, newValue?.addedFields);
+              newValue = onCreateOption(newValue, newValue?.addedFields);
             }
           }
           if (!newValue?.value || newValue.value === "error") {
@@ -216,23 +346,34 @@ export const CippAutoComplete = (props) => {
           onChange(newValue, newValue?.addedFields);
         }
       }}
-      options={api ? usedOptions : options}
-      getOptionLabel={(option) =>
-        option
-          ? option.label === null
-            ? ""
-            : option.label || "Label not found - Are you missing a labelField?"
-          : ""
-      }
+      options={memoizedOptions}
+      getOptionLabel={useCallback(
+        (option) => {
+          if (!option) return "";
+          // For static options (non-API), the option should already have a label
+          if (!api && option.label !== undefined) {
+            return option.label === null ? "" : String(option.label);
+          }
+          // For API options, use the existing logic
+          if (api) {
+            return option.label === null
+              ? ""
+              : option.label || "Label not found - Are you missing a labelField?";
+          }
+          // Fallback for any edge cases
+          return option.label || option.value || "";
+        },
+        [api]
+      )}
       sx={sx}
       renderInput={(params) => (
         <Stack direction="row" spacing={1}>
-          <TextField
-            variant="filled"
+          <MemoTextField
+            params={params}
+            label={label}
             placeholder={placeholder}
             required={required}
-            label={label}
-            {...params}
+            {...other}
           />
           {api?.url && api?.showRefresh && (
             <IconButton
@@ -246,6 +387,8 @@ export const CippAutoComplete = (props) => {
           )}
         </Stack>
       )}
+      groupBy={groupBy}
+      renderGroup={renderGroup}
       {...other}
     />
   );

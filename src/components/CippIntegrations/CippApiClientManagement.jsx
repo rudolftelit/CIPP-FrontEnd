@@ -68,7 +68,7 @@ const CippApiClientManagement = () => {
           <PencilIcon />
         </SvgIcon>
       ),
-      confirmText: "Update the API client settings:",
+      confirmText: "Update the API client settings for [AppName]?",
       hideBulk: true,
       setDefaultValues: true,
       fields: [
@@ -77,22 +77,25 @@ const CippApiClientManagement = () => {
           name: "Role",
           multiple: false,
           creatable: false,
-          placeholder: "Select Role",
+          label: "Select Role",
+          placeholder: "Choose a role from the CIPP Role list.",
           api: {
             url: "/api/ListCustomRole",
             queryKey: "CustomRoleList",
-            labelField: "RowKey",
-            valueField: "RowKey",
+            labelField: "RoleName",
+            valueField: "RoleName",
+            showRefresh: true,
           },
         },
         {
           type: "autoComplete",
-          name: "IpRange",
+          name: "IPRange",
           multiple: true,
           freeSolo: true,
           creatable: true,
           options: [],
-          placeholder: "Enter IP Range (Single hosts or CIDR notation)",
+          label: "Enter IP Range (Single hosts or CIDR notation)",
+          placeholder: "Type in the IP addresses and hit enter.",
         },
         {
           type: "switch",
@@ -111,7 +114,7 @@ const CippApiClientManagement = () => {
     {
       label: "Reset Application Secret",
       icon: <Key />,
-      confirmText: "Are you sure you want to reset the application secret?",
+      confirmText: "Are you sure you want to reset the application secret for [AppName]?",
       type: "POST",
       url: "/api/ExecApiClient",
       data: {
@@ -133,7 +136,7 @@ const CippApiClientManagement = () => {
     {
       label: "Delete Client",
       icon: <TrashIcon />,
-      confirmText: "Are you sure you want to delete this client?",
+      confirmText: "Are you sure you want to delete [AppName]?",
       type: "POST",
       url: "/api/ExecApiClient",
       data: {
@@ -231,7 +234,7 @@ const CippApiClientManagement = () => {
               value: azureConfig.data?.Results?.TenantID ? (
                 <CippCopyToClipBoard
                   type="chip"
-                  text={`https://logon.microsoftonline.com/${azureConfig.data?.Results?.TenantID}/oauth2/v2.0/token`}
+                  text={`https://login.microsoftonline.com/${azureConfig.data?.Results?.TenantID}/oauth2/v2.0/token`}
                 />
               ) : (
                 "Not Available"
@@ -250,13 +253,13 @@ const CippApiClientManagement = () => {
           showDivider={false}
           isFetching={azureConfig.isFetching}
         />
-        {azureConfig.isSuccess && azureConfig.data?.Results?.ClientIDs && (
+        {azureConfig.isSuccess && (
           <>
             {!isEqual(
               apiClients.data?.pages?.[0]?.Results?.filter((c) => c.Enabled)
                 .map((c) => c.ClientId)
                 .sort(),
-              azureConfig.data?.Results?.ClientIDs?.sort()
+              (azureConfig.data?.Results?.ClientIDs || []).sort()
             ) && (
               <Box sx={{ px: 3 }}>
                 <Alert severity="warning">
@@ -301,29 +304,33 @@ const CippApiClientManagement = () => {
           {
             type: "textField",
             name: "AppName",
-            placeholder: "Enter App Name",
+            label: "App Name",
+            placeholder: "Enter a name for this Application Registration.",
           },
           {
             type: "autoComplete",
             name: "Role",
             multiple: false,
             creatable: false,
-            placeholder: "Select Role",
+            label: "Select Role",
             api: {
               url: "/api/ListCustomRole",
               queryKey: "CustomRoleList",
-              labelField: "RowKey",
-              valueField: "RowKey",
+              labelField: "RoleName",
+              valueField: "RoleName",
+              showRefresh: true,
             },
+            placeholder: "Choose a role from the CIPP Role list.",
           },
           {
             type: "autoComplete",
-            name: "IpRange",
+            name: "IPRange",
             multiple: true,
             freeSolo: true,
             creatable: true,
             options: [],
-            placeholder: "Enter IP Range (Single hosts or CIDR notation)",
+            label: "Enter IP Ranges (Single hosts or CIDR notation)",
+            placeholder: "Type in the IP addresses and hit enter.",
           },
           {
             type: "switch",
@@ -348,7 +355,8 @@ const CippApiClientManagement = () => {
           {
             type: "autoComplete",
             name: "ClientId",
-            placeholder: "Select Existing App",
+            label: "Existing App",
+            placeholder: "Select an existing API application.",
             api: {
               type: "GET",
               url: "/api/ExecApiClient",
@@ -361,6 +369,7 @@ const CippApiClientManagement = () => {
                 displayName: "displayName",
                 createdDateTime: "createdDateTime",
               },
+              showRefresh: true,
             },
             creatable: false,
             multiple: false,
@@ -370,22 +379,25 @@ const CippApiClientManagement = () => {
             name: "Role",
             multiple: false,
             creatable: false,
-            placeholder: "Select Role",
+            label: "Select Role",
+            placeholder: "Choose a role from the CIPP Role list.",
             api: {
               url: "/api/ListCustomRole",
               queryKey: "CustomRoleList",
-              labelField: "RowKey",
-              valueField: "RowKey",
+              labelField: "RoleName",
+              valueField: "RoleName",
+              showRefresh: true,
             },
           },
           {
             type: "autoComplete",
-            name: "IpRange",
+            name: "IPRange",
             multiple: true,
             freeSolo: true,
             creatable: true,
             options: [],
-            placeholder: "Enter IP Range(s)",
+            label: "Enter IP Ranges (Single hosts or CIDR notation)",
+            placeholder: "Type in the IP addresses and hit enter.",
           },
           {
             type: "switch",
