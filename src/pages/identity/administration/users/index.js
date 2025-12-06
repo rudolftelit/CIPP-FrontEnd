@@ -2,12 +2,15 @@ import { CippTablePage } from "/src/components/CippComponents/CippTablePage.jsx"
 import { Layout as DashboardLayout } from "/src/layouts/index.js";
 import { useSettings } from "/src/hooks/use-settings.js";
 import { PermissionButton } from "../../../../utils/permissions";
-import { CippUserActions } from "/src/components/CippComponents/CippUserActions.jsx";
+import { useCippUserActions } from "/src/components/CippComponents/CippUserActions.jsx";
 import { CippInviteGuestDrawer } from "/src/components/CippComponents/CippInviteGuestDrawer.jsx";
 import { CippBulkUserDrawer } from "/src/components/CippComponents/CippBulkUserDrawer.jsx";
 import { CippAddUserDrawer } from "/src/components/CippComponents/CippAddUserDrawer.jsx";
+import { CippApiLogsDrawer } from "/src/components/CippComponents/CippApiLogsDrawer.jsx";
+import { Box } from "@mui/material";
 
 const Page = () => {
+  const userActions = useCippUserActions();
   const pageTitle = "Users";
   const tenant = useSettings().currentTenant;
   const cardButtonPermissions = ["Identity.User.ReadWrite"];
@@ -48,7 +51,7 @@ const Page = () => {
       "onPremisesDistinguishedName", // OnPrem DN
       "otherMails", // Alternate Email Addresses
     ],
-    actions: CippUserActions(),
+    actions: userActions,
   };
 
   return (
@@ -56,7 +59,7 @@ const Page = () => {
       title={pageTitle}
       apiUrl="/api/ListGraphRequest"
       cardButton={
-        <>
+        <Box sx={{ display: "flex", gap: 1 }}>
           <CippAddUserDrawer
             requiredPermissions={cardButtonPermissions}
             PermissionButton={PermissionButton}
@@ -69,7 +72,14 @@ const Page = () => {
             requiredPermissions={cardButtonPermissions}
             PermissionButton={PermissionButton}
           />
-        </>
+          <CippApiLogsDrawer
+            apiFilter="(?<!Scheduler_)User"
+            buttonText="View Logs"
+            title="User Logs"
+            PermissionButton={PermissionButton}
+            tenantFilter={tenant}
+          />
+        </Box>
       }
       apiData={{
         Endpoint: "users",
@@ -81,7 +91,7 @@ const Page = () => {
         $top: 999,
       }}
       apiDataKey="Results"
-      actions={CippUserActions()}
+      actions={userActions}
       offCanvas={offCanvas}
       simpleColumns={[
         "accountEnabled",
