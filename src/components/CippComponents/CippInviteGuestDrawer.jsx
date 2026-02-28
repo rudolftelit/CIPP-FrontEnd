@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@mui/material";
 import { Grid } from "@mui/system";
-import { useForm } from "react-hook-form";
+import { useForm, useFormState } from "react-hook-form";
 import { Send } from "@mui/icons-material";
 import { CippOffCanvas } from "./CippOffCanvas";
 import CippFormComponent from "./CippFormComponent";
@@ -16,7 +16,7 @@ export const CippInviteGuestDrawer = ({
 }) => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const userSettingsDefaults = useSettings();
-  
+
   const formControl = useForm({
     mode: "onChange",
     defaultValues: {
@@ -24,16 +24,31 @@ export const CippInviteGuestDrawer = ({
       displayName: "",
       mail: "",
       redirectUri: "",
-      sendInvite: false,
+      message: "",
+      sendInvite: true,
     },
   });
+
+  const { isValid } = useFormState({ control: formControl.control });
 
   const inviteGuest = ApiPostCall({
     urlFromData: true,
     relatedQueryKeys: [`Users-${userSettingsDefaults.currentTenant}`],
   });
 
+  // Reset form fields on successful invitation
+  useEffect(() => {
+    if (inviteGuest.isSuccess) {
+      formControl.reset();
+    }
+  }, [inviteGuest.isSuccess, formControl]);
+
   const handleSubmit = () => {
+    formControl.trigger();
+    // Check if the form is valid before proceeding
+    if (!isValid) {
+      return;
+    }
     const formData = formControl.getValues();
     inviteGuest.mutate({
       url: "/api/AddGuest",
@@ -49,7 +64,8 @@ export const CippInviteGuestDrawer = ({
       displayName: "",
       mail: "",
       redirectUri: "",
-      sendInvite: false,
+      message: "",
+      sendInvite: true,
     });
   };
 
@@ -73,13 +89,13 @@ export const CippInviteGuestDrawer = ({
               variant="contained"
               color="primary"
               onClick={handleSubmit}
-              disabled={inviteGuest.isLoading}
+              disabled={inviteGuest.isLoading || !isValid}
             >
               {inviteGuest.isLoading
                 ? "Sending Invite..."
                 : inviteGuest.isSuccess
-                ? "Send Another Invite"
-                : "Send Invite"}
+                  ? "Send Another Invite"
+                  : "Send Invite"}
             </Button>
             <Button variant="outlined" onClick={handleCloseDrawer}>
               Close
@@ -105,12 +121,12 @@ export const CippInviteGuestDrawer = ({
               label="E-mail Address"
               name="mail"
               formControl={formControl}
-              validators={{ 
+              validators={{
                 required: "Email address is required",
                 pattern: {
                   value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: "Invalid email address"
-                }
+                  message: "Invalid email address",
+                },
               }}
             />
           </Grid>
@@ -121,6 +137,18 @@ export const CippInviteGuestDrawer = ({
               label="Redirect URL"
               name="redirectUri"
               placeholder="Optional Redirect URL defaults to https://myapps.microsoft.com if blank"
+              formControl={formControl}
+            />
+          </Grid>
+          <Grid size={{ md: 12, xs: 12 }}>
+            <CippFormComponent
+              type="textField"
+              fullWidth
+              label="Custom invite message"
+              name="message"
+              multiline
+              minRows={3}
+              placeholder="Optional message included in the invite email"
               formControl={formControl}
             />
           </Grid>
