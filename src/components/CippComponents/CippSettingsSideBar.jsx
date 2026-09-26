@@ -33,16 +33,17 @@ export const CippSettingsSideBar = (props) => {
   // Set the correct default value once we have the initial user type and current user data
   useEffect(() => {
     if (initialUserType && currentUser.data?.clientPrincipal?.userDetails) {
-      const defaultUserOption = initialUserType === "currentUser" 
-        ? {
-            label: "Current User",
-            value: currentUser.data.clientPrincipal.userDetails,
-          }
-        : {
-            label: "All Users",
-            value: "allUsers"
-          };
-      
+      const defaultUserOption =
+        initialUserType === "currentUser"
+          ? {
+              label: "Current User",
+              value: currentUser.data.clientPrincipal.userDetails,
+            }
+          : {
+              label: "All Users",
+              value: "allUsers",
+            };
+
       // Only set if not already set to avoid infinite loops
       const currentUserValue = formcontrol.getValues("user");
       if (!currentUserValue || currentUserValue.value !== defaultUserOption.value) {
@@ -59,7 +60,18 @@ export const CippSettingsSideBar = (props) => {
       // General Settings
       usageLocation: formValues.usageLocation,
       tablePageSize: formValues.tablePageSize,
+      tableViewMode: formValues.tableViewMode,
+      defaultTestSuite: formValues.defaultTestSuite,
       userAttributes: formValues.userAttributes,
+
+      // Table Filter Preferences
+      persistFilters: formValues.persistFilters,
+
+      // Navigation Settings
+      bookmarkSidebar: formValues.bookmarkSidebar,
+      bookmarkPopover: formValues.bookmarkPopover,
+      bookmarkReorderMode: formValues.bookmarkReorderMode,
+      compactNav: formValues.compactNav,
 
       // Portal Links Configuration
       portalLinks: {
@@ -90,9 +102,19 @@ export const CippSettingsSideBar = (props) => {
         KeepCopy: formValues.offboardingDefaults?.KeepCopy,
         DeleteUser: formValues.offboardingDefaults?.DeleteUser,
         RemoveMobile: formValues.offboardingDefaults?.RemoveMobile,
+        WipeMobile: formValues.offboardingDefaults?.WipeMobile,
         DisableSignIn: formValues.offboardingDefaults?.DisableSignIn,
         RemoveMFADevices: formValues.offboardingDefaults?.RemoveMFADevices,
+        RemoveTeamsPhoneDID: formValues.offboardingDefaults?.RemoveTeamsPhoneDID,
         ClearImmutableId: formValues.offboardingDefaults?.ClearImmutableId,
+        removeCalendarPermissions: formValues.offboardingDefaults?.removeCalendarPermissions,
+        DisableOneDriveSharing: formValues.offboardingDefaults?.DisableOneDriveSharing,
+        OOO: formValues.offboardingDefaults?.OOO,
+        postExecution: {
+          psa: formValues.offboardingDefaults?.postExecution?.psa,
+          email: formValues.offboardingDefaults?.postExecution?.email,
+          webhook: formValues.offboardingDefaults?.postExecution?.webhook,
+        },
       },
     };
 
@@ -108,15 +130,15 @@ export const CippSettingsSideBar = (props) => {
     if (!currentUser.data?.clientPrincipal?.userDetails) {
       return [];
     }
-    
+
     return [
-      { 
-        label: "Current User", 
-        value: currentUser.data.clientPrincipal.userDetails 
+      {
+        label: "Current User",
+        value: currentUser.data.clientPrincipal.userDetails,
       },
-      { 
-        label: "All Users", 
-        value: "allUsers" 
+      {
+        label: "All Users",
+        value: "allUsers",
       },
     ];
   };
