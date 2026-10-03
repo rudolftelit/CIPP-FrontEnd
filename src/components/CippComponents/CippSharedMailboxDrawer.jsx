@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { CippIcons } from "../../utils/icon-registry"
 import { Button } from "@mui/material";
 import { useForm } from "react-hook-form";
-import { Divider } from "@mui/material";
-import { Add } from "@mui/icons-material";
 import { CippOffCanvas } from "./CippOffCanvas";
 import CippFormComponent from "./CippFormComponent";
 import { CippFormDomainSelector } from "./CippFormDomainSelector";
@@ -57,12 +56,24 @@ export const CippSharedMailboxDrawer = ({
     });
   };
 
+  // Reset form on successful creation, preserving the selected domain
+  useEffect(() => {
+    if (createSharedMailbox.isSuccess) {
+      const domain = formControl.getValues("domain");
+      formControl.reset({
+        displayName: "",
+        username: "",
+        domain: domain,
+      });
+    }
+  }, [createSharedMailbox.isSuccess, formControl]);
+
   return (
     <>
       <PermissionButton
-        requiredPermissions={requiredPermissions}
+        {...(PermissionButton !== Button ? { requiredPermissions } : {})}
         onClick={() => setDrawerVisible(true)}
-        startIcon={<Add />}
+        startIcon={<CippIcons.Add />}
       >
         {buttonText}
       </PermissionButton>
